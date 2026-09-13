@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fit the Line — Linear Regression Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101B2D;
+    --panel: #16233A;
+    --panel-border: #24344F;
+    --paper: #EEF3F8;
+    --grid: #D7E2EC;
+    --axis: #7C8CA6;
+    --point: #2FA8A0;
+    --point-ring: #1D7168;
+    --line-color: #F2A33D;
+    --residual: #E6533C;
+    --text: #E7ECF5;
+    --text-muted: #8FA0BB;
+    --good: #43C59E;
+    --warn: #E6533C;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 24px 48px;
+  }
+
+  header {
+    margin-bottom: 28px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 60ch;
+    line-height: 1.5;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  .plot-card {
+    padding: 18px 18px 8px;
+  }
+
+  #plot {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    background: var(--paper);
+  }
+
+  .plot-legend {
+    display: flex;
+    gap: 18px;
+    padding: 10px 4px 4px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  .panel-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+    font-weight: 500;
+  }
+
+  .equation-box {
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+
+  .equation-box .eq {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--line-color);
+    letter-spacing: 0.01em;
+  }
+
+  .slider-group { margin-bottom: 20px; }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .slider-label .name { color: var(--text); font-weight: 500; }
+  .slider-label .val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--line-color);
+    font-size: 14px;
+    min-width: 52px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--line-color);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line-color);
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--line-color);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line-color);
+    cursor: pointer;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .stat .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .stat .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 17px;
+    font-weight: 500;
+  }
+
+  .buttons { display: flex; flex-direction: column; gap: 10px; }
+
+  button {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  button:active { transform: scale(0.98); }
+
+  .btn-primary {
+    background: var(--line-color);
+    color: #1B1206;
+    border-color: var(--line-color);
+  }
+  .btn-primary:hover { background: #FFB552; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--text-muted); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 2px;
+    font-size: 14px;
+    border-top: 1px solid var(--panel-border);
+    margin-top: 4px;
+  }
+
+  .switch {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-track {
+    position: absolute;
+    inset: 0;
+    background: var(--panel-border);
+    border-radius: 999px;
+    transition: background 0.15s ease;
+    cursor: pointer;
+  }
+  .slider-track::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: var(--text);
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+  }
+  .switch input:checked + .slider-track { background: var(--residual); }
+  .switch input:checked + .slider-track::before { transform: translateX(16px); background: white; }
+
+  footer {
+    margin-top: 22px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Fit the Line</h1>
+    <p>Drag the sliders to change the slope and intercept of the line. Watch how each choice changes the fit — then compare your line to the best fit found by least squares.</p>
+  </header>
+
+  <div class="layout">
+    <div class="card plot-card">
+      <canvas id="plot"></canvas>
+      <div class="plot-legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--point)"></span>Data points</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--line-color)"></span>Your line</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--residual)"></span>Residuals (error)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="panel-title">Your line</p>
+
+      <div class="equation-box">
+        <div class="eq" id="eqDisplay">y = 1.00x + 0.0</div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span class="name">Slope (m)</span>
+          <span class="val" id="slopeVal">1.00</span>
+        </div>
+        <input type="range" id="slopeSlider" min="-5" max="5" step="0.05" value="1">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span class="name">Intercept (b)</span>
+          <span class="val" id="interceptVal">0.0</span>
+        </div>
+        <input type="range" id="interceptSlider" min="-15" max="20" step="0.25" value="0">
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="label">Sum sq. error</div>
+          <div class="value" id="sseVal">–</div>
+        </div>
+        <div class="stat">
+          <div class="label">R²</div>
+          <div class="value" id="r2Val">–</div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span>Show residuals</span>
+        <label class="switch">
+          <input type="checkbox" id="residualToggle" checked>
+          <span class="slider-track"></span>
+        </label>
+      </div>
+
+      <div class="buttons" style="margin-top: 16px;">
+        <button class="btn-primary" id="bestFitBtn">Snap to best fit</button>
+        <button class="btn-secondary" id="newDataBtn">New data set</button>
+      </div>
+
+      <footer>
+        Best fit is calculated with ordinary least squares — the line that minimizes the sum of squared residuals shown in red.
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('plot');
+  const ctx = canvas.getContext('2d');
+
+  const slopeSlider = document.getElementById('slopeSlider');
+  const interceptSlider = document.getElementById('interceptSlider');
+  const slopeVal = document.getElementById('slopeVal');
+  const interceptVal = document.getElementById('interceptVal');
+  const eqDisplay = document.getElementById('eqDisplay');
+  const sseVal = document.getElementById('sseVal');
+  const r2Val = document.getElementById('r2Val');
+  const residualToggle = document.getElementById('residualToggle');
+  const bestFitBtn = document.getElementById('bestFitBtn');
+  const newDataBtn = document.getElementById('newDataBtn');
+
+  let points = [];
+  let xMin, xMax, yMin, yMax;
+  let plotRect = { left: 0, top: 0, right: 0, bottom: 0 };
+  let animId = null;
+
+  function randRange(a, b) { return a + Math.random() * (b - a); }
+  function gaussianNoise(std) {
+    let u = 1 - Math.random(), v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std;
+  }
+
+  function generateData() {
+    const n = 14;
+    const trueSlope = (Math.random() < 0.5 ? -1 : 1) * randRange(0.6, 2.8);
+    const trueIntercept = randRange(-4, 9);
+    const noiseStd = randRange(1.2, 3.0);
+
+    points = [];
+    for (let i = 0; i < n; i++) {
+      const x = randRange(0.3, 9.7);
+      const y = trueSlope * x + trueIntercept + gaussianNoise(noiseStd);
+      points.push({ x, y });
+    }
+
+    xMin = 0; xMax = 10;
+    const ys = points.map(p => p.y);
+    const yRange = Math.max(...ys) - Math.min(...ys);
+    yMin = Math.min(...ys) - yRange * 0.25;
+    yMax = Math.max(...ys) + yRange * 0.25;
+
+    // Center starting sliders roughly near a reasonable guess, not the answer
+    slopeSlider.value = 1;
+    interceptSlider.value = ((yMin + yMax) / 2).toFixed(2);
+    updateReadouts();
+  }
+
+  function resizeCanvas() {
+    const cssWidth = canvas.parentElement.clientWidth - 36;
+    const cssHeight = Math.min(480, cssWidth * 0.68);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const pad = { left: 46, right: 18, top: 18, bottom: 40 };
+    plotRect = {
+      left: pad.left, top: pad.top,
+      right: cssWidth - pad.right, bottom: cssHeight - pad.bottom,
+      width: cssWidth - pad.left - pad.right,
+      height: cssHeight - pad.top - pad.bottom
+    };
+    draw();
+  }
+
+  function xScale(x) { return plotRect.left + (x - xMin) / (xMax - xMin) * plotRect.width; }
+  function yScale(y) { return plotRect.bottom - (y - yMin) / (yMax - yMin) * plotRect.height; }
+
+  function niceStep(range, targetCount) {
+    const raw = range / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    let step;
+    if (norm < 1.5) step = 1;
+    else if (norm < 3) step = 2;
+    else if (norm < 7) step = 5;
+    else step = 10;
+    return step * mag;
+  }
+
+  function draw() {
+    const w = plotRect.right + 18, h = plotRect.bottom + 40;
+    ctx.clearRect(0, 0, w, h);
+
+    // grid
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();
+    ctx.lineWidth = 1;
+    const xStep = niceStep(xMax - xMin, 8);
+    const yStep = niceStep(yMax - yMin, 6);
+
+    ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--axis').trim();
+
+    for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) {
+      const px = xScale(x);
+      ctx.beginPath();
+      ctx.moveTo(px, plotRect.top);
+      ctx.lineTo(px, plotRect.bottom);
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillText(x.toFixed(x % 1 === 0 ? 0 : 1), px, plotRect.bottom + 18);
+    }
+    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
+      const py = yScale(y);
+      ctx.beginPath();
+      ctx.moveTo(plotRect.left, py);
+      ctx.lineTo(plotRect.right, py);
+      ctx.stroke();
+      ctx.textAlign = 'right';
+      ctx.fillText(y.toFixed(y % 1 === 0 ? 0 : 1), plotRect.left - 8, py + 4);
+    }
+
+    // axes (zero lines, if in range)
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--axis').trim();
+    ctx.lineWidth = 1.5;
+    if (yMin <= 0 && yMax >= 0) {
+      const zy = yScale(0);
+      ctx.beginPath(); ctx.moveTo(plotRect.left, zy); ctx.lineTo(plotRect.right, zy); ctx.stroke();
+    }
+
+    const m = parseFloat(slopeSlider.value);
+    const b = parseFloat(interceptSlider.value);
+
+    // clip region for line + residuals
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(plotRect.left, plotRect.top, plotRect.width, plotRect.height);
+    ctx.clip();
+
+    // residuals
+    if (residualToggle.checked) {
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--residual').trim();
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      points.forEach(p => {
+        const predY = m * p.x + b;
+        ctx.beginPath();
+        ctx.moveTo(xScale(p.x), yScale(p.y));
+        ctx.lineTo(xScale(p.x), yScale(predY));
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+    }
+
+    // regression line
+    const y1 = m * xMin + b, y2 = m * xMax + b;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color').trim();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(xScale(xMin), yScale(y1));
+    ctx.lineTo(xScale(xMax), yScale(y2));
+    ctx.stroke();
+
+    ctx.restore();
+
+    // data points
+    points.forEach(p => {
+      const px = xScale(p.x), py = yScale(p.y);
+      ctx.beginPath();
+      ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--point').trim();
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--point-ring').trim();
+      ctx.stroke();
+    });
+  }
+
+  function computeStats(m, b) {
+    let sse = 0, sst = 0;
+    const meanY = points.reduce((s, p) => s + p.y, 0) / points.length;
+    points.forEach(p => {
+      const pred = m * p.x + b;
+      sse += (p.y - pred) ** 2;
+      sst += (p.y - meanY) ** 2;
+    });
+    const r2 = sst === 0 ? 0 : 1 - sse / sst;
+    return { sse, r2 };
+  }
+
+  function leastSquares() {
+    const n = points.length;
+    const sumX = points.reduce((s, p) => s + p.x, 0);
+    const sumY = points.reduce((s, p) => s + p.y, 0);
+    const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+    const sumXX = points.reduce((s, p) => s + p.x * p.x, 0);
+    const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const b = (sumY - m * sumX) / n;
+    return { m, b };
+  }
+
+  function updateReadouts() {
+    const m = parseFloat(slopeSlider.value);
+    const b = parseFloat(interceptSlider.value);
+    slopeVal.textContent = m.toFixed(2);
+    interceptVal.textContent = b.toFixed(1);
+    eqDisplay.textContent = 'y = ' + m.toFixed(2) + 'x ' + (b >= 0 ? '+ ' + b.toFixed(1) : '- ' + Math.abs(b).toFixed(1));
+
+    const { sse, r2 } = computeStats(m, b);
+    sseVal.textContent = sse.toFixed(1);
+    r2Val.textContent = r2.toFixed(3);
+    r2Val.style.color = r2 > 0.7 ? getComputedStyle(document.documentElement).getPropertyValue('--good').trim() : '';
+
+    draw();
+  }
+
+  function animateTo(targetM, targetB) {
+    if (animId) cancelAnimationFrame(animId);
+    const startM = parseFloat(slopeSlider.value);
+    const startB = parseFloat(interceptSlider.value);
+    const duration = 500;
+    const startTime = performance.now();
+
+    function step(now) {
+      const t = Math.min(1, (now - startTime) / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      slopeSlider.value = (startM + (targetM - startM) * ease).toFixed(3);
+      interceptSlider.value = (startB + (targetB - startB) * ease).toFixed(3);
+      updateReadouts();
+      if (t < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        animId = null;
+      }
+    }
+    animId = requestAnimationFrame(step);
+  }
+
+  slopeSlider.addEventListener('input', updateReadouts);
+  interceptSlider.addEventListener('input', updateReadouts);
+  residualToggle.addEventListener('change', draw);
+  bestFitBtn.addEventListener('click', () => {
+    const { m, b } = leastSquares();
+    animateTo(m, b);
+  });
+  newDataBtn.addEventListener('click', () => {
+    generateData();
+    resizeCanvas();
+  });
+  window.addEventListener('resize', resizeCanvas);
+
+  generateData();
+  resizeCanvas();
+})();
+</script>
+</body>
+</html>
